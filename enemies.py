@@ -995,7 +995,7 @@ def process_regular_enemy_logic(enemy_index, row, col, direction, current_time, 
     else:
         process_enemy_patrol_behavior(enemy_index, row, col, direction, current_time, last_move_time, maze)
     
-    update_enemy_move_timer(enemy_index, current_time)
+    # update_enemy_move_timer(enemy_index, current_time)
 
 def process_individual_enemy_update(enemy_index, enemy, current_time, maze, wall_size, offset):
     """Complete update logic for a single enemy entity"""

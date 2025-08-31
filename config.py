@@ -11,8 +11,8 @@ P_FIRE_INT = 80  # Faster player firing
 ENEMY_FIRE_INT = 150  # Faster enemy firing
 
 # Movement and speed constants
-ENEMY_MOVEMENT = 600  # Faster enemy movement
-BULLET_SPEED = 6  # Increased bullet speed
+ENEMY_MOVEMENT = 1000  # Faster enemy movement
+BULLET_SPEED = 8  # Increased bullet speed
 BOSS_BULLET_SPEED = 4  # Adjusted boss bullet speed
 BOSS_MOVEMENT = 0.002  # Slightly faster boss movement
 ENEMY_ROT_SPEED = 1.5  # Faster enemy rotation
