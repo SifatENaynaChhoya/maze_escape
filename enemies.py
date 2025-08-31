@@ -855,37 +855,40 @@ def calculate_enemy_world_position_for_shooting(row, col, wall_size, offset, cur
     return enemy_x, enemy_y, enemy_z
 
 def determine_bullet_direction_and_gun_index(row, col):
-    """Calculate bullet direction and gun position for enemy shooting"""
+    """Calculate bullet direction and gun position for enemy shooting with guaranteed normalization"""
     player_row, player_col = game_state.p_position
     
-    if row == player_row:  # Same row
-        direction_x = 1 if player_col > col else -1
-        direction_z = 0
+    if row == player_row:  # Same row - horizontal shot
+        direction_x = 1.0 if player_col > col else -1.0
+        direction_z = 0.0
         gun_idx = 1 if direction_x > 0 else 3
-    elif col == player_col:  # Same column
-        direction_x = 0
-        direction_z = 1 if player_row > row else -1
+    elif col == player_col:  # Same column - vertical shot
+        direction_x = 0.0
+        direction_z = 1.0 if player_row > row else -1.0
         gun_idx = 2 if direction_z > 0 else 0
     else:
-        # Default values if not in direct line
-        direction_x = 0
-        direction_z = 0
+        # If not in direct line, don't shoot (return zero direction)
+        direction_x = 0.0
+        direction_z = 0.0
         gun_idx = 0
     
     return direction_x, direction_z, gun_idx
 
 def calculate_bullet_start_position(enemy_x, enemy_y, enemy_z, gun_idx):
-    """Compute starting position for enemy bullet based on gun position"""
-    dx, dy, dz = GUN_OFFSETS[gun_idx]
-    start_x = enemy_x + dx * (game_state.body_radius + game_state.Gun_Len)
+    """Compute starting position for enemy bullet from enemy center (ignoring rotation)"""
+    # Always start bullets from the enemy center regardless of rotation
+    # Add small offset in shooting direction to avoid bullet spawning inside enemy
+    start_x = enemy_x
     start_y = enemy_y
-    start_z = enemy_z + dz * (game_state.body_radius + game_state.Gun_Len)
+    start_z = enemy_z
     return start_x, start_y, start_z
 
 def create_enemy_bullet(start_x, start_y, start_z, direction_x, direction_z, current_time):
-    """Generate and add enemy bullet to game state"""
-    bullet_dx = direction_x * game_state.Bullet_S
-    bullet_dz = direction_z * game_state.Bullet_S
+    """Generate and add enemy bullet to game state with consistent velocity"""
+    # Ensure consistent bullet speed using config constant
+    bullet_speed = BULLET_SPEED  # Use consistent speed from config
+    bullet_dx = direction_x * bullet_speed
+    bullet_dz = direction_z * bullet_speed
     bullet_data = [start_x, start_y, start_z, bullet_dx, 0, bullet_dz, current_time, False]
     game_state.bullets.append(bullet_data)
 
@@ -898,9 +901,18 @@ def execute_enemy_shooting_sequence(enemy_index, row, col, current_time, last_sh
     if not should_enemy_shoot_at_player(current_time, last_shot_time):
         return
     
-    enemy_x, enemy_y, enemy_z = calculate_enemy_world_position_for_shooting(row, col, wall_size, offset, current_time)
+    # Only shoot if direction is valid (enemy and player are in line)
     direction_x, direction_z, gun_idx = determine_bullet_direction_and_gun_index(row, col)
+    if direction_x == 0.0 and direction_z == 0.0:
+        return  # Skip shooting if not in direct line
+    
+    enemy_x, enemy_y, enemy_z = calculate_enemy_world_position_for_shooting(row, col, wall_size, offset, current_time)
     start_x, start_y, start_z = calculate_bullet_start_position(enemy_x, enemy_y, enemy_z, gun_idx)
+    
+    # Add small offset in the shooting direction to avoid bullet spawning inside enemy
+    offset_distance = wall_size / 4  # Small offset to clear the enemy body
+    start_x += direction_x * offset_distance
+    start_z += direction_z * offset_distance
     
     create_enemy_bullet(start_x, start_y, start_z, direction_x, direction_z, current_time)
     update_enemy_last_shot_time(enemy_index, current_time)
