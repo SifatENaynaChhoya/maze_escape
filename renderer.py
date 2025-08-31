@@ -1,6 +1,3 @@
-"""
-Rendering functions for maze, walls, collectibles, and UI text
-"""
 import math
 from OpenGL.GL import *
 from OpenGL.GLUT import *
@@ -143,15 +140,17 @@ def draw_freeze_traps():
     offset = len(maze) * wall_size // 2
 
     # Draw freeze traps in the maze (as cuboids above the floor)
-    for row in range(len(maze)):
-        for col in range(len(maze[0])):
+    row = 0
+    while row < len(maze):
+        col = 0
+        while col < len(maze[0]):
             if maze[row][col] == 6:
-                x = col * wall_size - offset + wall_size / 2
-                z = row * wall_size - offset + wall_size / 2
+                x, z = col * wall_size - offset + wall_size / 2, \
+                       row * wall_size - offset + wall_size / 2
 
                 # Draw floor under the freeze trap - same as normal floor
                 glBegin(GL_QUADS)
-                glColor3f(0.35, 0.75, 0.45)  # Same pleasant grass green
+                glColor3f(*SAGE_COLOR)  # Same pleasant grass green
                 glVertex3f(x - wall_size / 2, 10.0, z - wall_size / 2)
                 glVertex3f(x + wall_size / 2, 10.0, z - wall_size / 2)
                 glVertex3f(x + wall_size / 2, 10.0, z + wall_size / 2)
@@ -178,6 +177,9 @@ def draw_freeze_traps():
                 glPopMatrix()
 
                 glPopMatrix()
+
+            col += 1
+        row += 1
 
     # Draw deployed freeze traps
     for pos in game_state.freeze_trap_pos:
@@ -338,13 +340,13 @@ def draw_maze():
                 glPushMatrix()
 
                 # Use time to calculate scale and height dynamically
-                current_time = get_elapsed_time() % 1000  # Modulo for smooth looping
-                scale_factor = 0.75 + 0.25 * math.sin(current_time * 2 * math.pi / 1000)  # Scale between 0.75 and 1.0
-                height_offset = 50 + 20 * abs(current_time - 500) / 500  # Vertical oscillation
+                time_ = get_elapsed_time() % 1000
+                scale_factor = 0.75 + 0.25 * math.sin(time_ * 2 * math.pi / 1000)
+                height_offset = 50 + 20 * abs(time_ - 500) / 500
 
-                glTranslatef(x + wall_size / 2, height_offset, z + wall_size / 2)
-                glScalef(scale_factor, scale_factor, scale_factor)  # Apply the scaling effect
-                glColor3f(0.95, 0.95, 0.95)  # Soft white color
+                glTranslatef(x + wall_size/2, height_offset, z + wall_size/2)
+                glScalef(scale_factor, scale_factor, scale_factor)
+                glColor3f(0.95, 0.95, 0.95)
                 glutSolidSphere(wall_size / 4, 16, 16)
                 glPopMatrix()
             elif cell == 8:  # Immobilize trap
@@ -415,24 +417,32 @@ def draw_maze():
 
 def draw_coins():
     """Draw all coins that haven't been collected yet."""
-    if not game_state.coin_pos:  # Safety check for empty coin positions
+    if not game_state.coin_pos:
         return
-        
+
     wall_size = GRID_LENGTH * 2 // 15
     current_time = get_elapsed_time() % 1000
     height_offset = 30 + 10 * abs(current_time - 500) / 500
     scale = 0.5 + 0.3 * abs(current_time - 500) / 500
 
     # Debug print
-    print(f"Drawing coins for level {game_state.crnt_lev + 1}. Total positions: {len(game_state.coin_pos)}, Collected: {len(game_state.collected_coins[game_state.crnt_lev]) if game_state.crnt_lev < len(game_state.collected_coins) else 0}")
+    lev = game_state.crnt_lev + 1
+    c_c = len(game_state.collected_coins[game_state.crnt_lev]) if lev < len(game_state.collected_coins) else 0
+    print(f"Drawing coins for level {lev}. Total: {len(game_state.coin_pos)}, Collected: {c_c}")
 
-    for i, (x, z) in enumerate(game_state.coin_pos):
-        if game_state.crnt_lev >= len(game_state.collected_coins) or i in game_state.collected_coins[game_state.crnt_lev]:
-            continue  # Skip if level not in collected_coins or coin already collected
+    i = 0
+    while i < len(game_state.coin_pos):
+        coin_pos = game_state.coin_pos[i]
+        if (lev := game_state.crnt_lev) >= len(game_state.collected_coins) or \
+                i in game_state.collected_coins[lev]:
+            i += 1
+            continue
+        x, z = coin_pos
 
         glPushMatrix()
         glTranslatef(x, height_offset, z)
         glScalef(scale, scale, scale)
-        glColor3f(0.90, 0.74, 0.25)  # Deeper honey gold for better contrast on sage
+        glColor3f(0.90, 0.74, 0.25)
         glutSolidSphere(wall_size / 3, 16, 16)
         glPopMatrix()
+        i += 1
