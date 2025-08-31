@@ -6,6 +6,8 @@ from OpenGL.GLUT import *
 from OpenGL.GLU import *
 from config import *
 import game_state
+import math
+import time
 from utils import get_elapsed_time, update_delta_time, find_player_start, generate_coin_positions
 from enemies import initialize_enemies, update_enemies, draw_enemies
 from bullets import update_bullets, draw_bullets
@@ -329,24 +331,453 @@ def _calculate_total_possible_coins():
     return total_possible_coins
 
 def _draw_basic_game_stats(total_coins, crnt_lev_coins, total_possible_coins):
-    """Draw basic game statistics text"""
-    draw_text(10, 770, f"Level: {game_state.crnt_lev + 1}")
-    draw_text(10, 740, f"Health: {game_state.p_health}")
-    draw_text(10, 710, f"Coins Collected: {total_coins} / {total_possible_coins}")
+    """Draw enhanced game statistics with colorful HUD and warnings"""
+    # Draw HUD background panel
+    _draw_hud_background_panel()
     
+    # Enhanced level display
+    _draw_enhanced_level_display()
+    
+    # Enhanced health display with warnings
+    _draw_enhanced_health_display()
+    
+    # Enhanced bullet counter with threshold warnings
+    _draw_enhanced_bullet_display()
+    
+    # Enhanced coin displays
+    _draw_enhanced_coin_displays(total_coins, crnt_lev_coins, total_possible_coins)
+    
+    # Enhanced key and item displays
+    _draw_enhanced_key_and_items_display()
+
+def _draw_hud_background_panel():
+    """Draw a semi-transparent background panel for the HUD"""
+    # Setup for 2D rendering
+    glMatrixMode(GL_PROJECTION)
+    glPushMatrix()
+    glLoadIdentity()
+    gluOrtho2D(0, 1000, 0, 800)
+    glMatrixMode(GL_MODELVIEW)
+    glPushMatrix()
+    glLoadIdentity()
+    
+    # Enable blending for transparency
+    glEnable(GL_BLEND)
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+    
+    # Draw main HUD panel background
+    glColor4f(0.05, 0.05, 0.15, 0.8)  # Dark blue with transparency
+    glBegin(GL_QUADS)
+    glVertex2f(5, 580)
+    glVertex2f(350, 580)
+    glVertex2f(350, 785)
+    glVertex2f(5, 785)
+    glEnd()
+    
+    # Draw HUD border with gradient effect
+    current_time = time.time()
+    border_pulse = 0.5 + 0.2 * math.sin(current_time * 2)
+    glColor3f(0.3 * border_pulse, 0.6 * border_pulse, 0.9 * border_pulse)
+    glLineWidth(2)
+    glBegin(GL_LINE_LOOP)
+    glVertex2f(5, 580)
+    glVertex2f(350, 580)
+    glVertex2f(350, 785)
+    glVertex2f(5, 785)
+    glEnd()
+    glLineWidth(1)
+    
+    glDisable(GL_BLEND)
+    
+    # Restore matrices
+    glPopMatrix()
+    glMatrixMode(GL_PROJECTION)
+    glPopMatrix()
+    glMatrixMode(GL_MODELVIEW)
+
+def _draw_enhanced_level_display():
+    """Draw enhanced level display with progress indicators"""
+    level_num = game_state.crnt_lev + 1
+    total_levels = 3  # Assuming 3 levels total
+    
+    # Level title with icon
+    glColor3f(0.4, 0.8, 1.0)  # Bright cyan
+    draw_text(15, 770, f"🏆 LEVEL {level_num} / {total_levels}", GLUT_BITMAP_HELVETICA_18)
+    
+    # Draw level progress bar
+    _draw_level_progress_bar(level_num, total_levels)
+
+def _draw_level_progress_bar(current_level, total_levels):
+    """Draw a visual progress bar for level completion"""
+    glMatrixMode(GL_PROJECTION)
+    glPushMatrix()
+    glLoadIdentity()
+    gluOrtho2D(0, 1000, 0, 800)
+    glMatrixMode(GL_MODELVIEW)
+    glPushMatrix()
+    glLoadIdentity()
+    
+    # Progress bar background
+    glColor3f(0.2, 0.2, 0.3)
+    glBegin(GL_QUADS)
+    glVertex2f(200, 770)
+    glVertex2f(330, 770)
+    glVertex2f(330, 780)
+    glVertex2f(200, 780)
+    glEnd()
+    
+    # Progress bar fill
+    progress = current_level / total_levels
+    fill_width = 130 * progress
+    glColor3f(0.2, 0.9, 0.4)  # Bright green
+    glBegin(GL_QUADS)
+    glVertex2f(200, 770)
+    glVertex2f(200 + fill_width, 770)
+    glVertex2f(200 + fill_width, 780)
+    glVertex2f(200, 780)
+    glEnd()
+    
+    glPopMatrix()
+    glMatrixMode(GL_PROJECTION)
+    glPopMatrix()
+    glMatrixMode(GL_MODELVIEW)
+
+def _draw_enhanced_health_display():
+    """Draw enhanced health display with color-coded warnings"""
+    health = game_state.p_health
+    max_health = MAX_PLAYER_HEALTH
+    health_percentage = health / max_health
+    
+    # Determine health status and color
+    if health_percentage > 0.6:
+        health_color = (0.2, 0.9, 0.3)  # Healthy green
+        health_icon = "💚"
+        status_text = ""
+    elif health_percentage > 0.3:
+        health_color = (0.9, 0.7, 0.2)  # Warning yellow
+        health_icon = "💛"
+        status_text = " ⚠️ LOW HEALTH!"
+    else:
+        # Critical health - flashing red
+        current_time = time.time()
+        flash_intensity = 0.5 + 0.5 * math.sin(current_time * 8)  # Fast flashing
+        health_color = (0.9 + 0.1 * flash_intensity, 0.1, 0.1)
+        health_icon = "💔"
+        status_text = " 🚨 CRITICAL!"
+    
+    # Draw health text with appropriate color
+    glColor3f(*health_color)
+    draw_text(15, 740, f"{health_icon} Health: {health}/{max_health}{status_text}", GLUT_BITMAP_HELVETICA_18)
+    
+    # Draw health bar
+    _draw_health_bar(health, max_health, health_color)
+
+def _draw_health_bar(current_health, max_health, health_color):
+    """Draw a visual health bar"""
+    glMatrixMode(GL_PROJECTION)
+    glPushMatrix()
+    glLoadIdentity()
+    gluOrtho2D(0, 1000, 0, 800)
+    glMatrixMode(GL_MODELVIEW)
+    glPushMatrix()
+    glLoadIdentity()
+    
+    bar_x, bar_y = 15, 720
+    bar_width, bar_height = 200, 12
+    
+    # Health bar background
+    glColor3f(0.3, 0.1, 0.1)  # Dark red background
+    glBegin(GL_QUADS)
+    glVertex2f(bar_x, bar_y)
+    glVertex2f(bar_x + bar_width, bar_y)
+    glVertex2f(bar_x + bar_width, bar_y + bar_height)
+    glVertex2f(bar_x, bar_y + bar_height)
+    glEnd()
+    
+    # Health bar fill
+    health_ratio = current_health / max_health
+    fill_width = bar_width * health_ratio
+    glColor3f(*health_color)
+    glBegin(GL_QUADS)
+    glVertex2f(bar_x, bar_y)
+    glVertex2f(bar_x + fill_width, bar_y)
+    glVertex2f(bar_x + fill_width, bar_y + bar_height)
+    glVertex2f(bar_x, bar_y + bar_height)
+    glEnd()
+    
+    # Health bar border
+    glColor3f(0.8, 0.8, 0.8)
+    glLineWidth(2)
+    glBegin(GL_LINE_LOOP)
+    glVertex2f(bar_x, bar_y)
+    glVertex2f(bar_x + bar_width, bar_y)
+    glVertex2f(bar_x + bar_width, bar_y + bar_height)
+    glVertex2f(bar_x, bar_y + bar_height)
+    glEnd()
+    glLineWidth(1)
+    
+    glPopMatrix()
+    glMatrixMode(GL_PROJECTION)
+    glPopMatrix()
+    glMatrixMode(GL_MODELVIEW)
+
+def _draw_enhanced_bullet_display():
+    """Draw enhanced bullet counter with threshold warnings and death warning"""
+    bullets_used = game_state.Tracks_bullets
+    bullet_limit = game_state.bullet_limit
+    bullets_remaining = bullet_limit - bullets_used
+    usage_percentage = bullets_used / bullet_limit
+    
+    # Determine bullet status and color
+    if usage_percentage < 0.7:
+        bullet_color = (0.3, 0.9, 0.5)  # Safe green
+        bullet_icon = "🔫"
+        warning_text = ""
+    elif usage_percentage < 0.9:
+        bullet_color = (0.9, 0.7, 0.2)  # Warning yellow
+        bullet_icon = "⚠️"
+        warning_text = " AMMO LOW!"
+    else:
+        # Critical/Death threshold - flashing red
+        current_time = time.time()
+        flash_intensity = 0.5 + 0.5 * math.sin(current_time * 10)  # Very fast flashing
+        bullet_color = (0.9 + 0.1 * flash_intensity, 0.1, 0.1)
+        bullet_icon = "💀"
+        if bullets_remaining == 0:
+            warning_text = " DEAD - NO AMMO!"
+        else:
+            warning_text = f" DEATH IN {bullets_remaining}!"
+    
+    # Draw bullets text with appropriate color
+    glColor3f(*bullet_color)
+    draw_text(15, 690, f"{bullet_icon} Ammo: {bullets_remaining}/{bullet_limit}{warning_text}", GLUT_BITMAP_HELVETICA_18)
+    
+    # Draw bullet threshold indicator
+    _draw_bullet_threshold_indicator(bullets_used, bullet_limit)
+    
+    # Show exact bullet usage
+    glColor3f(0.7, 0.7, 0.9)  # Light blue-gray
+    draw_text(15, 670, f"📊 Used: {bullets_used} | Limit: {bullet_limit}", GLUT_BITMAP_HELVETICA_12)
+
+def _draw_bullet_threshold_indicator(bullets_used, bullet_limit):
+    """Draw a visual indicator showing bullet usage and death threshold"""
+    glMatrixMode(GL_PROJECTION)
+    glPushMatrix()
+    glLoadIdentity()
+    gluOrtho2D(0, 1000, 0, 800)
+    glMatrixMode(GL_MODELVIEW)
+    glPushMatrix()
+    glLoadIdentity()
+    
+    bar_x, bar_y = 15, 650
+    bar_width, bar_height = 200, 12
+    usage_ratio = bullets_used / bullet_limit
+    
+    # Bullet usage bar background
+    glColor3f(0.1, 0.3, 0.1)  # Dark green background
+    glBegin(GL_QUADS)
+    glVertex2f(bar_x, bar_y)
+    glVertex2f(bar_x + bar_width, bar_y)
+    glVertex2f(bar_x + bar_width, bar_y + bar_height)
+    glVertex2f(bar_x, bar_y + bar_height)
+    glEnd()
+    
+    # Draw usage fill with gradient colors
+    fill_width = bar_width * usage_ratio
+    if usage_ratio < 0.7:
+        glColor3f(0.2, 0.8, 0.3)  # Green zone
+    elif usage_ratio < 0.9:
+        glColor3f(0.9, 0.7, 0.2)  # Yellow warning zone
+    else:
+        # Red danger zone with flashing
+        current_time = time.time()
+        flash = 0.7 + 0.3 * math.sin(current_time * 12)
+        glColor3f(0.9 * flash, 0.1, 0.1)
+    
+    glBegin(GL_QUADS)
+    glVertex2f(bar_x, bar_y)
+    glVertex2f(bar_x + fill_width, bar_y)
+    glVertex2f(bar_x + fill_width, bar_y + bar_height)
+    glVertex2f(bar_x, bar_y + bar_height)
+    glEnd()
+    
+    # Draw death threshold marker (90% mark)
+    death_threshold_x = bar_x + (bar_width * 0.9)
+    glColor3f(1.0, 0.2, 0.2)  # Bright red
+    glLineWidth(3)
+    glBegin(GL_LINES)
+    glVertex2f(death_threshold_x, bar_y - 3)
+    glVertex2f(death_threshold_x, bar_y + bar_height + 3)
+    glEnd()
+    glLineWidth(1)
+    
+    # Draw bar border
+    glColor3f(0.8, 0.8, 0.8)
+    glLineWidth(2)
+    glBegin(GL_LINE_LOOP)
+    glVertex2f(bar_x, bar_y)
+    glVertex2f(bar_x + bar_width, bar_y)
+    glVertex2f(bar_x + bar_width, bar_y + bar_height)
+    glVertex2f(bar_x, bar_y + bar_height)
+    glEnd()
+    glLineWidth(1)
+    
+    glPopMatrix()
+    glMatrixMode(GL_PROJECTION)
+    glPopMatrix()
+    glMatrixMode(GL_MODELVIEW)
+
+
+def _draw_enhanced_coin_displays(total_coins, crnt_lev_coins, total_possible_coins):
+    """Draw enhanced coin collection displays with progress bars"""
     level_coin_total = len(game_state.coin_pos) if game_state.coin_pos else 0
-    draw_text(10, 680, f"Level Coins: {crnt_lev_coins} / {level_coin_total}")
     
-    key_status = 'Yes' if game_state.k_collect else 'No'
-    draw_text(10, 650, f"Key Collected: {key_status}")
-    draw_text(10, 620, f"Freeze Traps: {game_state.freeze_traps_C}")
-    draw_text(10, 590, f"Bullets Used: {game_state.Tracks_bullets} / {game_state.bullet_limit}")
+    # Total coins with treasure chest icon
+    total_coin_ratio = total_coins / total_possible_coins if total_possible_coins > 0 else 0
+    if total_coin_ratio > 0.8:
+        coin_color = (1.0, 0.8, 0.2)  # Gold
+        coin_icon = "💰"
+    elif total_coin_ratio > 0.5:
+        coin_color = (0.8, 0.8, 0.2)  # Yellow
+        coin_icon = "🪙"
+    else:
+        coin_color = (0.6, 0.6, 0.6)  # Gray
+        coin_icon = "🔘"
+    
+    glColor3f(*coin_color)
+    draw_text(15, 620, f"{coin_icon} Total Coins: {total_coins}/{total_possible_coins}", GLUT_BITMAP_HELVETICA_18)
+    
+    # Level coins with completion percentage
+    level_coin_ratio = crnt_lev_coins / level_coin_total if level_coin_total > 0 else 0
+    level_percentage = int(level_coin_ratio * 100)
+    
+    if level_coin_ratio == 1.0:
+        level_coin_color = (0.2, 1.0, 0.3)  # Bright green for completion
+        level_icon = "✅"
+    elif level_coin_ratio > 0.5:
+        level_coin_color = (0.9, 0.7, 0.2)  # Yellow for progress
+        level_icon = "🟡"
+    else:
+        level_coin_color = (0.8, 0.5, 0.2)  # Orange for low progress
+        level_icon = "🟠"
+    
+    glColor3f(*level_coin_color)
+    draw_text(15, 600, f"{level_icon} Stage Coins: {crnt_lev_coins}/{level_coin_total} ({level_percentage}%)", GLUT_BITMAP_HELVETICA_18)
+
+def _draw_enhanced_key_and_items_display():
+    """Draw enhanced key and items display with better visual feedback"""
+    # Key status with lock/unlock icons
+    if game_state.k_collect:
+        key_color = (0.3, 0.9, 0.3)  # Bright green
+        key_icon = "🔓"
+        key_status = "COLLECTED"
+    else:
+        # Flashing orange for missing key
+        current_time = time.time()
+        flash = 0.7 + 0.3 * math.sin(current_time * 4)
+        key_color = (0.9 * flash, 0.5 * flash, 0.1)
+        key_icon = "🔒"
+        key_status = "MISSING"
+    
+    glColor3f(*key_color)
+    draw_text(15, 580, f"{key_icon} Key: {key_status}", GLUT_BITMAP_HELVETICA_18)
+    
+    # Freeze traps with ice icon
+    if game_state.freeze_traps_C > 0:
+        freeze_color = (0.4, 0.9, 0.9)  # Cyan
+        freeze_icon = "❄️"
+    else:
+        freeze_color = (0.5, 0.5, 0.7)  # Gray
+        freeze_icon = "🚫"
+    
+    glColor3f(*freeze_color)
+    draw_text(200, 580, f"{freeze_icon} Freeze Traps: {game_state.freeze_traps_C}", GLUT_BITMAP_HELVETICA_18)
 
 def _draw_boss_health_if_applicable():
-    """Draw boss health if in boss level and boss exists"""
+    """Draw enhanced boss health display with dramatic effects"""
     if _should_show_boss_health():
         boss_health = game_state.enemies[0][5]
-        draw_text(10, 560, f"Boss Health: {boss_health}")
+        max_boss_health = 10  # Assuming max boss health
+        
+        # Calculate boss health status
+        boss_health_ratio = boss_health / max_boss_health
+        current_time = time.time()
+        
+        # Determine boss health color and effects
+        if boss_health_ratio > 0.7:
+            boss_color = (0.8, 0.2, 0.2)  # Menacing red
+            boss_icon = "👹"
+            status_text = " STRONG"
+        elif boss_health_ratio > 0.3:
+            boss_color = (0.9, 0.5, 0.2)  # Orange warning
+            boss_icon = "😠"
+            status_text = " WEAKENING"
+        else:
+            # Critical boss health - flashing
+            flash = 0.6 + 0.4 * math.sin(current_time * 6)
+            boss_color = (0.9 * flash, 0.1, 0.9 * flash)  # Flashing purple
+            boss_icon = "💀"
+            status_text = " CRITICAL!"
+        
+        # Draw boss health with dramatic styling
+        glColor3f(*boss_color)
+        draw_text(10, 560, f"{boss_icon} BOSS: {boss_health}/{max_boss_health}{status_text}", GLUT_BITMAP_HELVETICA_18)
+        
+        # Draw boss health bar
+        _draw_boss_health_bar(boss_health, max_boss_health, boss_color)
+
+def _draw_boss_health_bar(current_health, max_health, boss_color):
+    """Draw a dramatic boss health bar"""
+    glMatrixMode(GL_PROJECTION)
+    glPushMatrix()
+    glLoadIdentity()
+    gluOrtho2D(0, 1000, 0, 800)
+    glMatrixMode(GL_MODELVIEW)
+    glPushMatrix()
+    glLoadIdentity()
+    
+    bar_x, bar_y = 10, 540
+    bar_width, bar_height = 250, 15
+    
+    # Boss health bar background with menacing dark red
+    glColor3f(0.2, 0.05, 0.05)
+    glBegin(GL_QUADS)
+    glVertex2f(bar_x, bar_y)
+    glVertex2f(bar_x + bar_width, bar_y)
+    glVertex2f(bar_x + bar_width, bar_y + bar_height)
+    glVertex2f(bar_x, bar_y + bar_height)
+    glEnd()
+    
+    # Boss health bar fill with pulsing effect
+    health_ratio = current_health / max_health
+    fill_width = bar_width * health_ratio
+    current_time = time.time()
+    pulse = 0.8 + 0.2 * math.sin(current_time * 4)
+    enhanced_boss_color = (boss_color[0] * pulse, boss_color[1] * pulse, boss_color[2] * pulse)
+    
+    glColor3f(*enhanced_boss_color)
+    glBegin(GL_QUADS)
+    glVertex2f(bar_x, bar_y)
+    glVertex2f(bar_x + fill_width, bar_y)
+    glVertex2f(bar_x + fill_width, bar_y + bar_height)
+    glVertex2f(bar_x, bar_y + bar_height)
+    glEnd()
+    
+    # Boss health bar border with intimidating effect
+    glColor3f(0.9, 0.1, 0.1)
+    glLineWidth(3)
+    glBegin(GL_LINE_LOOP)
+    glVertex2f(bar_x, bar_y)
+    glVertex2f(bar_x + bar_width, bar_y)
+    glVertex2f(bar_x + bar_width, bar_y + bar_height)
+    glVertex2f(bar_x, bar_y + bar_height)
+    glEnd()
+    glLineWidth(1)
+    
+    glPopMatrix()
+    glMatrixMode(GL_PROJECTION)
+    glPopMatrix()
+    glMatrixMode(GL_MODELVIEW)
 
 def _should_show_boss_health():
     """Check if boss health should be displayed"""
@@ -380,38 +811,106 @@ def _draw_cloak_status():
         _draw_no_cloak_status()
 
 def _draw_active_cloak_status():
-    """Draw status when cloak is active"""
-    draw_text(10, 530, "Cloak Active: Yes")
+    """Draw enhanced status when cloak is active with glowing effects"""
+    current_time = time.time()
+    
+    # Cloak active with shimmering effect
+    shimmer = 0.7 + 0.3 * math.sin(current_time * 4)
+    cloak_color = (0.8 * shimmer, 0.9 * shimmer, 1.0)
+    
+    glColor3f(*cloak_color)
+    draw_text(10, 530, "🌟 Cloak: ACTIVE (Invisible!)", GLUT_BITMAP_HELVETICA_18)
+    
     if not game_state.cheat_mode:
         elapsed_cloak_time = get_elapsed_time() - game_state.clk_start_T
         remaining_time = (CLOAK_DURATION - elapsed_cloak_time) // 1000
-        draw_text(10, 500, f"Cloak Duration: {remaining_time}s")
+        
+        # Color-code the remaining time
+        if remaining_time > 3:
+            time_color = (0.4, 0.9, 0.9)  # Cyan - plenty of time
+        elif remaining_time > 1:
+            time_color = (0.9, 0.7, 0.2)  # Yellow - warning
+        else:
+            # Red flashing for critical time
+            flash = 0.5 + 0.5 * math.sin(current_time * 8)
+            time_color = (0.9 * flash, 0.1, 0.1)
+        
+        glColor3f(*time_color)
+        draw_text(10, 500, f"⏰ Duration: {remaining_time}s remaining", GLUT_BITMAP_HELVETICA_18)
 
 def _draw_collected_cloak_status():
-    """Draw status when cloak is collected but not active"""
-    draw_text(10, 530, f"Cloak Collected: {game_state.clk_collected}")
+    """Draw enhanced status when cloak is collected but not active"""
+    current_time = time.time()
+    pulse = 0.6 + 0.4 * math.sin(current_time * 2)
+    
+    glColor3f(0.5 * pulse, 0.8 * pulse, 0.9)
+    draw_text(10, 530, f"👤 Cloak Ready: {game_state.clk_collected} available", GLUT_BITMAP_HELVETICA_18)
 
 def _draw_no_cloak_status():
-    """Draw status when no cloak is available"""
-    draw_text(10, 530, "Cloak Collected: No")
+    """Draw enhanced status when no cloak is available"""
+    glColor3f(0.6, 0.4, 0.5)  # Muted purple-gray
+    draw_text(10, 530, "👤 Cloak: Not Found", GLUT_BITMAP_HELVETICA_18)
 
 def _draw_item_and_cheat_info():
-    """Draw selected item and cheat mode information"""
-    # Selected item status
-    if game_state.S_item:
-        draw_text(10, 470, f"Selected Item: {game_state.S_item}")
-    else:
-        draw_text(10, 470, "No item selected")
+    """Draw enhanced selected item and cheat mode information with colorful display"""
+    # Enhanced selected item status
+    _draw_enhanced_selected_item_display()
     
-    # Cheat mode status
+    # Enhanced cheat mode status
     if game_state.cheat_mode:
-        _draw_cheat_mode_status()
+        _draw_enhanced_cheat_mode_status()
 
-def _draw_cheat_mode_status():
-    """Draw cheat mode status information"""
-    draw_text(10, 440, "CHEAT MODE ACTIVE", GLUT_BITMAP_HELVETICA_18)
+def _draw_enhanced_selected_item_display():
+    """Draw enhanced selected item display with icons and colors"""
+    if game_state.S_item:
+        # Determine item icon and color based on selected item
+        if game_state.S_item.lower() == "freeze_trap":
+            item_color = (0.4, 0.9, 0.9)  # Cyan for freeze trap
+            item_icon = "❄️"
+            item_name = "FREEZE TRAP"
+        elif game_state.S_item.lower() == "key":
+            item_color = (1.0, 0.8, 0.2)  # Gold for key
+            item_icon = "🔑"
+            item_name = "KEY"
+        else:
+            item_color = (0.8, 0.6, 0.9)  # Purple for other items
+            item_icon = "🎁"
+            item_name = game_state.S_item.upper()
+        
+        # Draw with pulsing effect
+        current_time = time.time()
+        pulse = 0.8 + 0.2 * math.sin(current_time * 3)
+        enhanced_color = (item_color[0] * pulse, item_color[1] * pulse, item_color[2] * pulse)
+        
+        glColor3f(*enhanced_color)
+        draw_text(10, 470, f"{item_icon} Selected: {item_name}", GLUT_BITMAP_HELVETICA_18)
+    else:
+        # No item selected - subtle gray with appropriate icon
+        glColor3f(0.5, 0.5, 0.6)
+        draw_text(10, 470, "📦 No item selected", GLUT_BITMAP_HELVETICA_18)
+
+def _draw_enhanced_cheat_mode_status():
+    """Draw enhanced cheat mode status information with colorful animations"""
+    current_time = time.time()
+    
+    # Cheat mode main indicator with rainbow effect
+    rainbow_r = 0.5 + 0.5 * math.sin(current_time * 2)
+    rainbow_g = 0.5 + 0.5 * math.sin(current_time * 2 + 2.09)  # 120 degrees phase shift
+    rainbow_b = 0.5 + 0.5 * math.sin(current_time * 2 + 4.18)  # 240 degrees phase shift
+    
+    glColor3f(rainbow_r, rainbow_g, rainbow_b)
+    draw_text(10, 440, "🎮 CHEAT MODE ACTIVE", GLUT_BITMAP_HELVETICA_18)
+    
+    # Wall phasing indicator with special effects
     if game_state.wall_phasing:
-        draw_text(10, 410, "WALL PHASING ACTIVE", GLUT_BITMAP_HELVETICA_18)
+        # Flashing purple/blue for wall phasing
+        phase_flash = 0.6 + 0.4 * math.sin(current_time * 6)
+        glColor3f(0.8 * phase_flash, 0.4, 0.9 * phase_flash)
+        draw_text(10, 410, "👻 WALL PHASING ACTIVE", GLUT_BITMAP_HELVETICA_18)
+    
+    # Add cheat mode benefits indicator
+    glColor3f(0.7, 0.9, 0.4)  # Light green
+    draw_text(10, 380, "⚡ Unlimited Health & Ammo", GLUT_BITMAP_HELVETICA_12)
 
 def _draw_pause_message_if_paused():
     """Draw pause message if game is paused"""
@@ -453,7 +952,7 @@ def _create_game_window():
     window_height = 800
     window_x = 0
     window_y = 0
-    window_title = b"3D Maze Escape: Hunter's Chase"
+    window_title = b"MAZE ESCAPE - 3D Adventure"
     
     glutInitWindowSize(window_width, window_height)
     glutInitWindowPosition(window_x, window_y)

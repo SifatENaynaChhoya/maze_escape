@@ -33,10 +33,10 @@ INITIAL_VIEW_ANGLE = (0, 3800, 3800)  # Adjusted for better view
 INITIAL_CAM_POINT = (0, 0, 0)  # Point camera is looking at
 FIELD_OF_VIEW = 65  # Slightly wider field of view
 
-# Menu button rectangles (x, y, width, height)
-MENU_BUTTON_RECT = (400, 350, 200, 50)
-INSTRUCTIONS_BUTTON_RECT = (400, 280, 200, 50)
-EXIT_BUTTON_RECT = (400, 210, 200, 50)
+# Menu button rectangles (x, y, width, height) - coordinates match menu.py button positions
+MENU_BUTTON_RECT = (350, 380, 300, 60)  # START GAME button
+INSTRUCTIONS_BUTTON_RECT = (350, 310, 300, 60)  # INSTRUCTIONS button
+EXIT_BUTTON_RECT = (350, 240, 300, 60)  # EXIT button
 
 # Direction vectors for the four guns: North, East, South, West
 GUN_OFFSETS = [(0, 0, -1), (1, 0, 0), (0, 0, 1), (-1, 0, 0)]

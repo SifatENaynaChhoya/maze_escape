@@ -422,10 +422,11 @@ def _handle_instructions_mouse_input(x, y):
 
 def _get_back_button_data():
     """Get back button position and size data"""
+    # Coordinates match the back button in menu.py draw_instructions_panel()
     bx = 400
-    by = 150
+    by = 80
     bw = 200
-    bh = 50
+    bh = 60
     return (bx, by, bw, bh)
 
 def _handle_main_menu_mouse_input(x, y):
