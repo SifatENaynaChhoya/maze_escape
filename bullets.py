@@ -179,23 +179,28 @@ class BulletManager:
         offset = len(mazes[game_state.crnt_lev]) * self.wall_size // 2
         maze = mazes[game_state.crnt_lev]
         new_bullets = []
-        idx = 0
-        bullets = game_state.p_bullets
-        while idx < len(bullets):
-            bullet = bullets[idx]
-            x, y, z, dx, dy, dz, creation_time = bullet
-            x, y, z = self._move_bullet(x, y, z, dx, dy, dz)
-            col, row = self._maze_coords(x, z, offset)
-            out_of_bounds = self._is_out_of_bounds(row, col, maze)
-            wall = self._is_wall(row, col, maze)
-            expired = current_time - creation_time > BULLET_LIFETIME
-            hit = self._check_enemy_hit(x, y, z, offset)
-            # Use while to skip bullets that should be removed
-            while out_of_bounds or wall or expired or hit:
-                break
-            else:
-                new_bullets.append([x, y, z, dx, dy, dz, creation_time])
-            idx += 1
+        
+        for bullet in game_state.p_bullets:
+            old_x, old_y, old_z, dx, dy, dz, creation_time = bullet
+            
+            # Calculate new position
+            new_x, new_y, new_z = self._move_bullet(old_x, old_y, old_z, dx, dy, dz)
+            
+            # Check if bullet lifetime expired
+            if current_time - creation_time > BULLET_LIFETIME:
+                continue  # Skip this bullet
+            
+            # Check for wall collision using proper ray-casting
+            if self._check_wall_collision(old_x, old_z, new_x, new_z, offset, maze):
+                continue  # Skip this bullet - it hit a wall
+            
+            # Check for enemy hit
+            if self._check_enemy_hit(new_x, new_y, new_z, offset):
+                continue  # Skip this bullet - it hit an enemy
+            
+            # Bullet still active, keep it with new position
+            new_bullets.append([new_x, new_y, new_z, dx, dy, dz, creation_time])
+        
         game_state.p_bullets = new_bullets
 
     def update_enemy_bullets(self):
@@ -203,22 +208,28 @@ class BulletManager:
         offset = len(mazes[game_state.crnt_lev]) * self.wall_size // 2
         maze = mazes[game_state.crnt_lev]
         new_bullets = []
-        idx = 0
-        bullets = game_state.bullets
-        while idx < len(bullets):
-            bullet = bullets[idx]
-            x, y, z, dx, dy, dz, creation_time, is_player_bullet = bullet
-            x, y, z = self._move_bullet(x, y, z, dx, dy, dz)
-            col, row = self._maze_coords(x, z, offset)
-            out_of_bounds = self._is_out_of_bounds(row, col, maze)
-            wall = self._is_wall(row, col, maze)
-            expired = current_time - creation_time > BULLET_LIFETIME
-            hit = self._check_player_hit(x, y, z, offset, current_time)
-            while out_of_bounds or wall or expired or hit:
-                break
-            else:
-                new_bullets.append([x, y, z, dx, dy, dz, creation_time, is_player_bullet])
-            idx += 1
+        
+        for bullet in game_state.bullets:
+            old_x, old_y, old_z, dx, dy, dz, creation_time, is_player_bullet = bullet
+            
+            # Calculate new position
+            new_x, new_y, new_z = self._move_bullet(old_x, old_y, old_z, dx, dy, dz)
+            
+            # Check if bullet lifetime expired
+            if current_time - creation_time > BULLET_LIFETIME:
+                continue  # Skip this bullet
+            
+            # Check for wall collision using proper ray-casting
+            if self._check_wall_collision(old_x, old_z, new_x, new_z, offset, maze):
+                continue  # Skip this bullet - it hit a wall
+            
+            # Check for player hit
+            if self._check_player_hit(new_x, new_y, new_z, offset, current_time):
+                continue  # Skip this bullet - it hit the player
+            
+            # Bullet still active, keep it with new position
+            new_bullets.append([new_x, new_y, new_z, dx, dy, dz, creation_time, is_player_bullet])
+        
         game_state.bullets = new_bullets
 
     def draw(self):
@@ -257,6 +268,54 @@ class BulletManager:
 
     def _is_wall(self, row, col, maze):
         return maze[row][col] == 1
+    
+    def _check_wall_collision(self, old_x, old_z, new_x, new_z, offset, maze):
+        """Check if bullet path from old position to new position intersects with walls"""
+        # Get maze coordinates for both positions
+        old_col, old_row = self._maze_coords(old_x, old_z, offset)
+        new_col, new_row = self._maze_coords(new_x, new_z, offset)
+        
+        # Check if new position is out of bounds or in a wall
+        if (self._is_out_of_bounds(new_row, new_col, maze) or 
+            self._is_wall(new_row, new_col, maze)):
+            return True
+        
+        # If bullet didn't change grid cells, no wall collision
+        if old_row == new_row and old_col == new_col:
+            return False
+        
+        # Use DDA (Digital Differential Analyzer) algorithm to check all grid cells along the path
+        return self._dda_wall_check(old_col, old_row, new_col, new_row, maze)
+    
+    def _dda_wall_check(self, x0, y0, x1, y1, maze):
+        """Digital Differential Analyzer algorithm to check for walls along a line"""
+        dx = abs(x1 - x0)
+        dy = abs(y1 - y0)
+        
+        x = x0
+        y = y0
+        
+        n = 1 + dx + dy
+        x_inc = 1 if x1 > x0 else -1
+        y_inc = 1 if y1 > y0 else -1
+        error = dx - dy
+        
+        dx *= 2
+        dy *= 2
+        
+        for _ in range(n):
+            # Check current cell for wall
+            if (self._is_out_of_bounds(y, x, maze) or self._is_wall(y, x, maze)):
+                return True
+            
+            if error > 0:
+                x += x_inc
+                error -= dy
+            else:
+                y += y_inc
+                error += dx
+        
+        return False
 
     def _check_enemy_hit(self, x, y, z, offset):
         wall_size = self.wall_size
