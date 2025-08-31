@@ -214,7 +214,9 @@ def player_shoot():
     
     # Update shooting state
     current_time = get_elapsed_time()
-    game_state.Tracks_bullets += 1
+    # Only increment bullet count if not in cheat mode
+    if not game_state.cheat_mode:
+        game_state.Tracks_bullets += 1
     game_state.P_END_SHOT_T = current_time
     
     # Calculate bullet position and direction

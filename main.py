@@ -445,7 +445,7 @@ def _draw_level_progress_bar(current_level, total_levels):
 def _draw_enhanced_health_display():
     """Draw enhanced health display with color-coded warnings"""
     health = game_state.p_health
-    max_health = MAX_PLAYER_HEALTH
+    max_health = INITIAL_PLAYER_HEALTH  # Use actual starting health as maximum
     health_percentage = health / max_health
     
     # Determine health status and color
@@ -525,6 +525,28 @@ def _draw_enhanced_bullet_display():
     """Draw enhanced bullet counter with threshold warnings and death warning"""
     bullets_used = game_state.Tracks_bullets
     bullet_limit = game_state.bullet_limit
+    
+    # Check if cheat mode is active
+    if game_state.cheat_mode:
+        # Show unlimited ammo display with special styling
+        current_time = time.time()
+        rainbow_r = 0.5 + 0.5 * math.sin(current_time * 2)
+        rainbow_g = 0.5 + 0.5 * math.sin(current_time * 2 + 2)
+        rainbow_b = 0.5 + 0.5 * math.sin(current_time * 2 + 4)
+        bullet_color = (rainbow_r, rainbow_g, rainbow_b)  # Rainbow effect
+        bullet_icon = "♾️"
+        warning_text = " UNLIMITED!"
+        
+        # Draw bullets text with rainbow color
+        glColor3f(*bullet_color)
+        draw_text(15, 690, f"{bullet_icon} Ammo: UNLIMITED{warning_text}", GLUT_BITMAP_HELVETICA_18)
+        
+        # Skip the progress bar and usage stats in cheat mode
+        glColor3f(0.8, 0.8, 0.2)  # Gold color
+        draw_text(15, 670, f"💥 CHEAT MODE: Infinite Ammo Active", GLUT_BITMAP_HELVETICA_12)
+        return
+    
+    # Normal ammo display (non-cheat mode)
     bullets_remaining = bullet_limit - bullets_used
     usage_percentage = bullets_used / bullet_limit
     
@@ -561,6 +583,10 @@ def _draw_enhanced_bullet_display():
 
 def _draw_bullet_threshold_indicator(bullets_used, bullet_limit):
     """Draw a visual indicator showing bullet usage and death threshold"""
+    # Skip drawing progress bar in cheat mode
+    if game_state.cheat_mode:
+        return
+        
     glMatrixMode(GL_PROJECTION)
     glPushMatrix()
     glLoadIdentity()
