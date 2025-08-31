@@ -68,6 +68,7 @@ game_paused = False  # Track if the game is paused
 # Menu and UI state
 game_state = "menu"  # Can be "menu" or "playing"
 show_instructions = False  # Track if instructions are being shown
+victory = False  # Track if player has won the game
 
 # Bonus tracking
 fifty_coin_bonus_given = False  # Track if 50 coin bonus has been given

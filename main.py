@@ -170,7 +170,8 @@ def _is_game_over():
 
 def _handle_game_over_display():
     """Handle game over display rendering"""
-    if _is_victory_condition():
+    # Check for victory condition first
+    if hasattr(game_state, 'victory') and game_state.victory or _is_victory_condition():
         _draw_victory_screen()
     else:
         _draw_game_over_screen()
@@ -178,18 +179,39 @@ def _handle_game_over_display():
     glutSwapBuffers()
 
 def _is_victory_condition():
-    """Check if player has won the game"""
+    """Check if player has won the game by either reaching the exit or defeating all enemies in final level"""
+    # If victory flag is already set, return True
+    if hasattr(game_state, 'victory') and game_state.victory:
+        return True
+        
     from maze_data import mazes
+    
+    # Only check for victory in the final level (level 2, 0-indexed)
     is_final_level = game_state.crnt_lev == 2
+    if not is_final_level:
+        return False
+        
     player_alive = game_state.p_health > 0
-    bullets_within_limit = game_state.Tracks_bullets <= game_state.bullet_limit
+    bullets_within_limit = game_state.cheat_mode or game_state.Tracks_bullets <= game_state.bullet_limit  # Allow cheat mode bypass
     has_key = game_state.k_collect
     
+    # Check if all enemies are defeated (boss killed)
+    all_enemies_defeated = len(game_state.enemies) == 0
+    
+    # Check if player is on exit tile
     player_row = game_state.p_position[0]
     player_col = game_state.p_position[1]
     on_exit_tile = mazes[game_state.crnt_lev][player_row][player_col] == 4
     
-    return is_final_level and player_alive and bullets_within_limit and has_key and on_exit_tile
+    # Update victory state if conditions are met (either boss killed OR on exit with key)
+    if player_alive and bullets_within_limit and (all_enemies_defeated or (has_key and on_exit_tile)):
+        if not hasattr(game_state, 'victory'):
+            game_state.victory = True
+        game_state.victory = True
+        game_state.game_over = True  # Ensure game over state is set
+        return True
+    
+    return False
 
 def _draw_victory_screen():
     """Draw victory screen messages"""
