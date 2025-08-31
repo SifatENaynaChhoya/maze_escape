@@ -1,5 +1,5 @@
 """
-Enemy management functions including AI, movement, and rendering
+Functions for managing enemy entities including behavior, positioning, and visual representation
 """
 import math
 import random
@@ -12,69 +12,99 @@ from maze_data import mazes
 from utils import get_elapsed_time
 
 def initialize_enemies():
-    """Find all enemies in the maze and initialize their data"""
+    """Locate and set up all enemy entities within the current maze layout"""
+    # Clear existing enemy data structures
     game_state.enemies = []
     game_state.enemy_rotations = []
-    game_state.ene_freeze_T = []  # Initialize as empty list
+    game_state.ene_freeze_T = []
 
     current_time = get_elapsed_time()
-
     maze = mazes[game_state.crnt_lev]
-    if not maze:  # Safety check
+    
+    # Validate maze data exists
+    if not maze:
         return
         
-    if game_state.crnt_lev == 2:  # Level 3 (Boss Fight)
-        # Add a single boss enemy at the center of the arena
-        boss_row = len(maze) // 2
-        boss_col = len(maze[0]) // 2
-        boss_health = 10  # Boss health
-        game_state.enemies.append([boss_row, boss_col, 0, 0, current_time, boss_health])  # Add health as the last parameter
-        game_state.enemy_rotations.append(0.0)  # Initial rotation angle
-        game_state.ene_freeze_T.append(0)  # Not frozen
+    # Special handling for boss level
+    if game_state.crnt_lev == 2:
+        maze_height = len(maze)
+        maze_width = len(maze[0])
+        boss_row = maze_height // 2
+        boss_col = maze_width // 2
+        boss_health = 10
+        
+        # Create boss entity with health parameter
+        boss_data = [boss_row, boss_col, 0, 0, current_time, boss_health]
+        game_state.enemies.append(boss_data)
+        game_state.enemy_rotations.append(0.0)
+        game_state.ene_freeze_T.append(0)
         return
 
-    for row in range(len(maze)):
-        for col in range(len(maze[0])):
+    # Process regular enemy placement
+    maze_height = len(maze)
+    for row in range(maze_height):
+        maze_width = len(maze[0])
+        for col in range(maze_width):
             if maze[row][col] == 5:
-                # Check if this enemy has valid movement options
+                # Verify enemy has valid movement options
                 has_valid_move = False
-                for dr, dc in [(-1, 0), (0, 1), (1, 0), (0, -1)]:  # Check in all 4 directions
-                    nr, nc = row + dr, col + dc
-                    if (0 <= nr < len(maze) and
-                            0 <= nc < len(maze[0]) and
-                            maze[nr][nc] == 0):
+                
+                # Check all four cardinal directions
+                direction_offsets = [(-1, 0), (0, 1), (1, 0), (0, -1)]
+                for direction_offset in direction_offsets:
+                    dr = direction_offset[0]
+                    dc = direction_offset[1]
+                    nr = row + dr
+                    nc = col + dc
+                    
+                    # Validate bounds and cell type
+                    if (0 <= nr < len(maze) and 0 <= nc < len(maze[0]) and maze[nr][nc] == 0):
                         has_valid_move = True
                         break
 
-                # Store the direction that leads to an open cell if possible
+                # Select initial direction for enemy
                 if has_valid_move:
-                    # Find a valid direction to start with
                     valid_directions = []
-                    for d, (dr, dc) in enumerate([(-1, 0), (0, 1), (1, 0), (0, -1)]):
-                        nr, nc = row + dr, col + dc
-                        if (0 <= nr < len(maze) and
-                                0 <= nc < len(maze[0]) and
-                                maze[nr][nc] == 0):
+                    direction_mappings = [(-1, 0), (0, 1), (1, 0), (0, -1)]
+                    
+                    for d in range(len(direction_mappings)):
+                        mapping = direction_mappings[d]
+                        dr = mapping[0]
+                        dc = mapping[1]
+                        nr = row + dr
+                        nc = col + dc
+                        
+                        if (0 <= nr < len(maze) and 0 <= nc < len(maze[0]) and maze[nr][nc] == 0):
                             valid_directions.append(d)
 
-                    direction = random.choice(valid_directions) if valid_directions else random.randint(0, 3)
+                    if valid_directions:
+                        direction = random.choice(valid_directions)
+                    else:
+                        direction = random.randint(0, 3)
                 else:
                     direction = random.randint(0, 3)
 
-                game_state.enemies.append([row, col, direction, 0, current_time])  # Added last shot time
-                game_state.enemy_rotations.append(0.0)  # Initial rotation angle
-                game_state.ene_freeze_T.append(0)  # Not frozen
-                # Replace enemy marker with floor in the maze
+                # Create enemy data structure
+                enemy_data = [row, col, direction, 0, current_time]
+                game_state.enemies.append(enemy_data)
+                game_state.enemy_rotations.append(0.0)
+                game_state.ene_freeze_T.append(0)
+                
+                # Clear enemy marker from maze
                 maze[row][col] = 0
 
-    # Initialize ene_freeze_T with 0 for each enemy
-    game_state.ene_freeze_T = [0] * len(game_state.enemies)
+    # Ensure freeze tracking matches enemy count
+    enemy_count = len(game_state.enemies)
+    game_state.ene_freeze_T = [0] * enemy_count
 
 def is_player_in_line_of_sight(enemy_row, enemy_col):
     """Check if player is in direct line of sight (same row or column) with no walls in between"""
     if game_state.clk_active:
         return False
-    player_row, player_col = game_state.p_position
+    # Extract player position components
+    player_position = game_state.p_position
+    player_row = player_position[0]
+    player_col = player_position[1]
     maze = mazes[game_state.crnt_lev]
 
     # Convert positions to integers for range function
@@ -124,9 +154,17 @@ def update_enemies():
         if not enemy or len(enemy) < 5:  # Check if enemy data is valid
             continue
             
-        row, col, direction, last_move_time, last_shot_time, *health = enemy
-        is_boss = len(health) > 0  # Check if this is the boss
-        health = health[0] if is_boss else None
+        # Extract enemy data components individually
+        row = enemy[0]
+        col = enemy[1]
+        direction = enemy[2]
+        last_move_time = enemy[3]
+        last_shot_time = enemy[4]
+        
+        # Handle optional health parameter for boss
+        health_data = enemy[5:] if len(enemy) > 5 else []
+        is_boss = len(health_data) > 0
+        health = health_data[0] if is_boss else None
 
         # Check if enemy is on a freeze trap
         if game_state.freeze_trap_pos:
@@ -153,6 +191,17 @@ def update_enemies():
                     # Reset freeze time when duration expires
                     game_state.ene_freeze_T[i] = 0
 
+        # CONTINUOUS COLLISION CHECK - Check for collision even if enemy isn't moving
+        player_row, player_col = game_state.p_position
+        if abs(row - player_row) <= 0.5 and abs(col - player_col) <= 0.5:
+            if not game_state.cheat_mode and current_time - game_state.p_last_hit_time > P_INVINCIBILITY_T:
+                game_state.p_health -= 1
+                game_state.p_last_hit_time = current_time
+                print(f"Player hit by enemy {i} at position ({row}, {col}) - Health: {game_state.p_health}")
+                if game_state.p_health <= 0:
+                    game_state.game_over = True
+                    game_state.p_health = 0
+
         if is_frozen:
             # Enemy is frozen - rotate more slowly and don't shoot or move
             game_state.enemy_rotations[i] = (game_state.enemy_rotations[i] + ENEMY_ROT_SPEED * 0.2) % 360
@@ -162,9 +211,14 @@ def update_enemies():
         if is_boss:
             # Rotate the boss
             game_state.enemy_rotations[i] = (game_state.enemy_rotations[i] + ENEMY_ROT_SPEED) % 360
-            player_row, player_col = game_state.p_position
-            boss_x, boss_z = col, row
-            player_x, player_z = player_col, player_row
+            # Extract player and boss position data
+            player_position = game_state.p_position
+            player_row = player_position[0]
+            player_col = player_position[1]
+            boss_x = col
+            boss_z = row
+            player_x = player_col
+            player_z = player_row
 
             # Only move toward player if not cloaked
             if not game_state.clk_active:
@@ -193,6 +247,15 @@ def update_enemies():
                 # Update boss position
                 game_state.enemies[i][0] = new_row
                 game_state.enemies[i][1] = new_col
+
+                # Check for boss collision with player
+                if abs(new_row - player_row) < 0.5 and abs(new_col - player_col) < 0.5:
+                    if not game_state.cheat_mode and current_time - game_state.p_last_hit_time > P_INVINCIBILITY_T:
+                        game_state.p_health -= 1  # Decrease health by 1 when colliding with boss
+                        game_state.p_last_hit_time = current_time
+                        if game_state.p_health <= 0:
+                            game_state.game_over = True
+                            game_state.p_health = 0
 
             # Only skip shooting if cloaked
             if game_state.clk_active:
